@@ -1,0 +1,7 @@
+.stack-work/
+dist-newstyle/
+newdist/
+*~
+*.swp
+.dir-locals.el
+todo-sqlite-easy

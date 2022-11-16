@@ -7,12 +7,10 @@
 module Main where
 
 import Database.Sqlite.Easy
-import Control.Monad (void)
 import Data.Functor ((<&>))
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
 import System.Environment (getArgs, lookupEnv)
-import Data.String (fromString)
 
 main :: IO ()
 main = do
@@ -86,7 +84,7 @@ type Id = Int64
 mkDB :: ConnectionString -> IO DB
 mkDB connectionString = do
   pool <- createSqlitePool connectionString
-  withResource pool runMigrations
+  withPool pool runMigrations
   pure DB
     { getTasks = getTasksFromDb pool
     , insertTask = insertTaskToDb pool
@@ -98,7 +96,7 @@ mkDB connectionString = do
 -- ** Migrations
 
 -- | Migrations action
-runMigrations :: Database -> IO ()
+runMigrations :: SQLite ()
 runMigrations = migrate migrations migrateUp migrateDown
 
 -- | Migrations list
@@ -108,18 +106,18 @@ migrations =
   ]
 
 -- | Migrations up step
-migrateUp :: MigrationName -> Database -> IO ()
+migrateUp :: MigrationName -> SQLite ()
 migrateUp = \case
   "task-table" ->
-    void . run "CREATE TABLE task(id INTEGER PRIMARY KEY AUTOINCREMENT, task TEXT)"
+    void (run "CREATE TABLE task(id INTEGER PRIMARY KEY AUTOINCREMENT, task TEXT)")
   unknown ->
     errorMsg "Unexpected migration" (show unknown)
 
 -- | Migrations down step
-migrateDown :: MigrationName -> Database -> IO ()
+migrateDown :: MigrationName -> SQLite ()
 migrateDown = \case
   "task-table" ->
-    void . run "DROP TABLE task"
+    void (run "DROP TABLE task")
   unknown ->
     errorMsg "Unexpected migration" (show unknown)
 
@@ -129,7 +127,7 @@ migrateDown = \case
 -- | Retrieve all of the tasks from the database
 getTasksFromDb :: Pool Database -> IO [(Id, Task)]
 getTasksFromDb pool = do
-  withResource pool (run "SELECT id, task FROM task")
+  withPool pool (run "SELECT id, task FROM task")
     <&> map \case
       [SQLInteger id', SQLText task] ->
         (id', task)
@@ -139,10 +137,10 @@ getTasksFromDb pool = do
 -- | Insert a new task into the database and get its id
 insertTaskToDb :: Pool Database -> Task -> IO Id
 insertTaskToDb pool task =
-  withResource pool \db ->
-    asTransaction db do
-      void $ runWith "INSERT INTO task(task) VALUES (?)" [SQLText task] db
-      result <- run "SELECT id FROM task ORDER BY id DESC LIMIT 1" db
+  withPool pool do
+    transaction do
+      void $ runWith "INSERT INTO task(task) VALUES (?)" [SQLText task]
+      result <- run "SELECT id FROM task ORDER BY id DESC LIMIT 1"
       case result of
         [[SQLInteger lastId]] -> pure lastId
         _ -> errorMsg "Unexpected row" (show result)
@@ -151,17 +149,17 @@ insertTaskToDb pool task =
 --   Return whether there was a task by that id or not
 deleteTaskByIdFromDb :: Pool Database -> Id -> IO Bool
 deleteTaskByIdFromDb pool id' =
-  withResource pool \db ->
-    asTransaction db do
+  withPool pool do
+    transaction do
       [[SQLInteger count]] <-
-        runWith "SELECT COUNT(*) FROM task WHERE id = ?" [SQLInteger id'] db
-      void $ runWith "DELETE FROM task WHERE id = ?" [SQLInteger id'] db
+        runWith "SELECT COUNT(*) FROM task WHERE id = ?" [SQLInteger id']
+      void $ runWith "DELETE FROM task WHERE id = ?" [SQLInteger id']
       pure (count > 0)
 
 -- | Delete all tasks.
 deleteTasksFromDb :: Pool Database -> IO ()
 deleteTasksFromDb pool =
-  withResource pool \db ->
-    asTransaction db do
-      void $ run "DELETE FROM task" db
-      void $ run "UPDATE SQLITE_SEQUENCE SET SEQ=0 WHERE NAME='task'" db
+  withPool pool do
+    transaction do
+      void $ run "DELETE FROM task"
+      void $ run "UPDATE SQLITE_SEQUENCE SET SEQ=0 WHERE NAME='task'"

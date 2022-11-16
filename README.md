@@ -3,13 +3,13 @@
 This is a very simple example of the
 [sqlite-easy](https://hackage.haskell.org/package/sqlite-easy) package.
 
-- Read the [sqlite-easy docs](https://hackage.haskell.org/package/sqlite-easy-0.1.0.0/docs/Database-Sqlite-Easy.html)
+- Read the [sqlite-easy docs](https://hackage.haskell.org/package/sqlite-easy-0.2.0.0/docs/Database-Sqlite-Easy.html)
 - See the example [source code](src/Main.hs)
 
-## How to build
+## How to run
 
 ```sh
-cabal build
+cabal run todo-sqlite-easy -- <command>
 ```
 
 ## What does it look like

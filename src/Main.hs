@@ -14,7 +14,8 @@ import System.Environment (getArgs, lookupEnv)
 
 main :: IO ()
 main = do
-  connStr <- maybe "/tmp/temp_todo_sqlite-easy.db" fromString <$> lookupEnv "DB"
+  connStr <- lookupEnv "DB"
+    <&> maybe "/tmp/temp_todo_sqlite-easy.db" fromString
   db <- mkDB connStr
   input <- getArgs
   act db input

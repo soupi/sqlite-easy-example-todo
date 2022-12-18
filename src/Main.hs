@@ -67,9 +67,9 @@ errorMsg msg extra =
 -----------------
 -- * Database
 
--- ** Handler
+-- ** Handle
 
--- | Handler API type
+-- | Handle API type
 data DB
   = DB
     { getTasks :: IO [(Id, Task)]
@@ -81,16 +81,16 @@ data DB
 type Task = Text
 type Id = Int64
 
--- | Handler smart constructor
+-- | Handle smart constructor
 mkDB :: ConnectionString -> IO DB
 mkDB connectionString = do
   pool <- createSqlitePool connectionString
   withPool pool runMigrations
   pure DB
-    { getTasks = getTasksFromDb pool
-    , insertTask = insertTaskToDb pool
-    , deleteTaskById = deleteTaskByIdFromDb pool
-    , deleteTasks = deleteTasksFromDb pool
+    { getTasks = withPool pool getTasksFromDb
+    , insertTask = withPool pool . insertTaskToDb
+    , deleteTaskById = withPool pool . deleteTaskByIdFromDb
+    , deleteTasks = withPool pool deleteTasksFromDb
     }
 
 ---------------------
@@ -126,9 +126,9 @@ migrateDown = \case
 -- ** Database actions
 
 -- | Retrieve all of the tasks from the database
-getTasksFromDb :: Pool Database -> IO [(Id, Task)]
-getTasksFromDb pool = do
-  withPool pool (run "SELECT id, task FROM task")
+getTasksFromDb :: SQLite [(Id, Task)]
+getTasksFromDb =
+  run "SELECT id, task FROM task"
     <&> map \case
       [SQLInteger id', SQLText task] ->
         (id', task)
@@ -136,31 +136,28 @@ getTasksFromDb pool = do
         errorMsg "Unexpected row" (show result)
 
 -- | Insert a new task into the database and get its id
-insertTaskToDb :: Pool Database -> Task -> IO Id
-insertTaskToDb pool task =
-  withPool pool do
-    transaction do
-      void $ runWith "INSERT INTO task(task) VALUES (?)" [SQLText task]
-      result <- run "SELECT id FROM task ORDER BY id DESC LIMIT 1"
-      case result of
-        [[SQLInteger lastId]] -> pure lastId
-        _ -> errorMsg "Unexpected row" (show result)
+insertTaskToDb :: Task -> SQLite Id
+insertTaskToDb task =
+  transaction do
+    void $ runWith "INSERT INTO task(task) VALUES (?)" [SQLText task]
+    result <- run "SELECT id FROM task ORDER BY id DESC LIMIT 1"
+    case result of
+      [[SQLInteger lastId]] -> pure lastId
+      _ -> errorMsg "Unexpected row" (show result)
 
 -- | Delete a task by its id if it exists.
 --   Return whether there was a task by that id or not
-deleteTaskByIdFromDb :: Pool Database -> Id -> IO Bool
-deleteTaskByIdFromDb pool id' =
-  withPool pool do
-    transaction do
-      [[SQLInteger count]] <-
-        runWith "SELECT COUNT(*) FROM task WHERE id = ?" [SQLInteger id']
-      void $ runWith "DELETE FROM task WHERE id = ?" [SQLInteger id']
-      pure (count > 0)
+deleteTaskByIdFromDb :: Id -> SQLite Bool
+deleteTaskByIdFromDb id' =
+  transaction do
+    [[SQLInteger count]] <-
+      runWith "SELECT COUNT(*) FROM task WHERE id = ?" [SQLInteger id']
+    void $ runWith "DELETE FROM task WHERE id = ?" [SQLInteger id']
+    pure (count > 0)
 
 -- | Delete all tasks.
-deleteTasksFromDb :: Pool Database -> IO ()
-deleteTasksFromDb pool =
-  withPool pool do
-    transaction do
-      void $ run "DELETE FROM task"
-      void $ run "UPDATE SQLITE_SEQUENCE SET SEQ=0 WHERE NAME='task'"
+deleteTasksFromDb :: SQLite ()
+deleteTasksFromDb =
+  transaction do
+    void $ run "DELETE FROM task"
+    void $ run "UPDATE SQLITE_SEQUENCE SET SEQ=0 WHERE NAME='task'"

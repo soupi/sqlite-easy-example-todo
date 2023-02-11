@@ -1,5 +1,5 @@
 name: todo-sqlite-easy
-version: 0.2.0.0
+version: 1.0.0.0
 license-file: LICENSE
 author: Gil Mizrahi
 maintainer: gilmi@posteo.net
@@ -16,5 +16,5 @@ executable todo-sqlite-easy
   -- ghc-options: -Wall -static -optl-static -optl-pthread -fPIC -O -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base
-    , sqlite-easy >= 0.2.0.0
+    , sqlite-easy >= 1.0.0.0
     , text

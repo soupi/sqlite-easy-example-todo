@@ -3,13 +3,25 @@
 This is a very simple example of the
 [sqlite-easy](https://hackage.haskell.org/package/sqlite-easy) package.
 
-- Read the [sqlite-easy docs](https://hackage.haskell.org/package/sqlite-easy-0.2.0.0/docs/Database-Sqlite-Easy.html)
+- Read the [sqlite-easy docs](https://hackage.haskell.org/package/sqlite-easy-1.0.0.0/docs/Database-Sqlite-Easy.html)
 - See the example [source code](src/Main.hs)
 
 ## How to run
 
 ```sh
 cabal run todo-sqlite-easy -- <command>
+```
+
+or copy the executable to the current directory with
+
+```sh
+cp $(cabal list-bin todo-sqlite-easy) todo-sqlite-easy
+```
+
+and then run
+
+```sh
+./todo-sqlite-easy <command>
 ```
 
 ## What does it look like
